@@ -1,0 +1,18 @@
+{
+  "name": "godot-visualizer-native-web",
+  "version": "0.1.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-visualizer.mjs",
+    "package:addon": "node scripts/package-addon.mjs"
+  },
+  "devDependencies": {
+    "archiver": "^7.0.1",
+    "esbuild": "^0.25.5"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
+    "force-graph": "^1.51.4"
+  }
+}

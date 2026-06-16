@@ -1,0 +1,8 @@
+.godot/
+.import/
+web/node_modules/
+dist/
+addons/godot_visualizer_native/web/visualizer.html
+user://
+.claude
+.DS_Store

@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+.godot export-ignore
+dist export-ignore
+docs export-ignore
+tests export-ignore
+web export-ignore
+project.godot export-ignore
+icon.svg export-ignore
+icon.svg.import export-ignore
