@@ -295,64 +295,28 @@ export function draw() {
   ctx.restore();
 }
 
-// Draws a single script node card centered on n.x / n.y. Shared by the manual
-// canvas renderer and the force-graph scripts view so styling stays identical.
-export function drawScriptCard(ctx, n, isHovered, isSelected) {
-  const x = Math.round(n.x - NODE_W / 2);
-  const y = Math.round(n.y - NODE_H / 2);
+// Card fonts (constant so they can be cached/measured once).
+const CARD_TITLE_FONT = `600 14px -apple-system, system-ui, sans-serif`;
+const CARD_SUB_FONT = `11px -apple-system, system-ui, sans-serif`;
+const CARD_BADGE_FONT = `600 9px -apple-system, system-ui, sans-serif`;
 
-  ctx.globalAlpha = n.highlighted === false ? 0.12 : 1;
+// Pre-compute the (data-dependent) text layout for a script card once, so the
+// per-frame draw doesn't call measureText/truncateText. Cached on the node and
+// invalidated via a key when the underlying data changes.
+function buildScriptCardLayout(ctx, n, sceneCount) {
+  const hasSceneBadge = sceneCount > 0;
 
-  // Shadow - fixed world-space size
-  ctx.shadowColor = 'rgba(0,0,0,0.4)';
-  ctx.shadowBlur = isHovered ? 16 : 8;
-  ctx.shadowOffsetY = 2;
-
-  // Background
-  ctx.beginPath();
-  roundRect(ctx, x, y, NODE_W, NODE_H, 10);
-  ctx.fillStyle = isSelected ? '#35353b' : isHovered ? '#303036' : '#242428';
-  ctx.fill();
-
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
-
-  // Border - fixed world-space width
-  ctx.strokeStyle = isSelected ? n.color : isHovered ? n.color : '#3a3a40';
-  ctx.lineWidth = isSelected ? 2 : 1;
-  ctx.stroke();
-
-  // Left accent bar
-  ctx.beginPath();
-  ctx.roundRect(x + 4, y + 8, 3, NODE_H - 16, 2);
-  ctx.fillStyle = n.color;
-  ctx.fill();
-
-  // Title - scales with node (no zoom compensation)
-  const titleSize = 14;
-  ctx.font = `600 ${titleSize}px -apple-system, system-ui, sans-serif`;
-  ctx.fillStyle = '#e8e4df';
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
+  ctx.font = CARD_TITLE_FONT;
   const displayName = n.class_name || n.filename.replace('.gd', '');
-  const usedInScenes = scriptToScenes[n.path];
-  const hasSceneBadge = usedInScenes && usedInScenes.length > 0;
   const titleRightPad = hasSceneBadge ? 32 : 14;
-  ctx.fillText(truncateText(ctx, displayName, NODE_W - 16 - titleRightPad), x + 16, y + NODE_H / 2 - 6);
+  const title = truncateText(ctx, displayName, NODE_W - 16 - titleRightPad);
 
-  // Subtitle with colored stats - scales with node
-  const subSize = 11;
+  ctx.font = CARD_SUB_FONT;
   const varCount = n.variables ? n.variables.length : 0;
   const funcCount = n.functions ? n.functions.length : 0;
   const sigCount = n.signals ? n.signals.length : 0;
+  const maxSubWidth = NODE_W - 16 - 14;
 
-  ctx.font = `${subSize}px -apple-system, system-ui, sans-serif`;
-  const subY = y + NODE_H / 2 + 9;
-  const subLeftPad = 16;
-  const subRightPad = 14;
-  const maxSubWidth = NODE_W - subLeftPad - subRightPad;
-
-  // Stat segments take priority; the extends prefix gets the leftover width.
   const statSegments = [
     { text: `${funcCount} func`, color: '#89dceb' },
     { text: ' ', color: '#706c66' },
@@ -371,30 +335,109 @@ export function drawScriptCard(ctx, n, isHovered, isSelected) {
     segments.push({ text: truncateText(ctx, n.extends || 'Node', extendsAvail), color: '#706c66' });
     segments.push({ text: extendsSep, color: '#706c66' });
   }
-  segments.push(...statSegments);
+  for (const s of statSegments) segments.push(s);
 
-  let subX = x + subLeftPad;
+  // Precompute each segment's x offset from the card's left text origin.
+  let off = 0;
   for (const seg of segments) {
-    ctx.fillStyle = seg.color;
-    ctx.fillText(seg.text, subX, subY);
-    subX += ctx.measureText(seg.text).width;
+    seg.dx = off;
+    off += ctx.measureText(seg.text).width;
   }
 
-  // Scene usage badge (top-right corner)
-  if (hasSceneBadge) {
-    const badgeX = x + NODE_W - 8;
-    const badgeY = y + 8;
+  return { title, segments, badge: hasSceneBadge ? '📦' + sceneCount : null };
+}
 
-    ctx.fillStyle = 'rgba(166, 227, 161, 0.2)';
-    ctx.beginPath();
-    ctx.roundRect(badgeX - 20, badgeY - 4, 24, 14, 3);
-    ctx.fill();
+// Draws a single script node card centered on n.x / n.y. Shared by the manual
+// canvas renderer and the force-graph scripts view so styling stays identical.
+// `scale` is the current zoom (force-graph globalScale); used for level-of-detail
+// so text isn't drawn when it would be too small to read (big perf win zoomed out).
+export function drawScriptCard(ctx, n, isHovered, isSelected, scale = 1) {
+  const x = Math.round(n.x - NODE_W / 2);
+  const y = Math.round(n.y - NODE_H / 2);
 
-    ctx.fillStyle = '#a6e3a1';
-    ctx.font = `600 9px -apple-system, system-ui, sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.fillText('📦' + usedInScenes.length, badgeX, badgeY + 4);
-    ctx.textAlign = 'left';
+  ctx.globalAlpha = n.highlighted === false ? 0.12 : 1;
+
+  // Shadows are expensive on canvas, so only the emphasized card gets one.
+  const emphasized = isHovered || isSelected;
+  if (emphasized) {
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = isHovered ? 16 : 10;
+    ctx.shadowOffsetY = 2;
+  }
+
+  // Background
+  ctx.beginPath();
+  roundRect(ctx, x, y, NODE_W, NODE_H, 10);
+  ctx.fillStyle = isSelected ? '#35353b' : isHovered ? '#303036' : '#242428';
+  ctx.fill();
+
+  if (emphasized) {
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+  }
+
+  // Border
+  ctx.strokeStyle = isSelected ? n.color : isHovered ? n.color : '#3a3a40';
+  ctx.lineWidth = isSelected ? 2 : 1;
+  ctx.stroke();
+
+  // Left accent bar
+  ctx.beginPath();
+  ctx.roundRect(x + 4, y + 8, 3, NODE_H - 16, 2);
+  ctx.fillStyle = n.color;
+  ctx.fill();
+
+  // Level of detail: skip text entirely when zoomed too far out to read it.
+  const TITLE_LOD = 0.35;
+  const DETAIL_LOD = 0.6;
+  if (scale < TITLE_LOD && !emphasized) {
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  // Cache the (data-dependent) text layout so the hot path avoids measureText.
+  const sceneCount = scriptToScenes[n.path] ? scriptToScenes[n.path].length : 0;
+  const funcCount = n.functions ? n.functions.length : 0;
+  const varCount = n.variables ? n.variables.length : 0;
+  const sigCount = n.signals ? n.signals.length : 0;
+  const key = `${n.class_name || ''}|${n.filename}|${n.extends || ''}|${funcCount}|${varCount}|${sigCount}|${n.line_count}|${sceneCount}`;
+  if (n._cardKey !== key) {
+    n._card = buildScriptCardLayout(ctx, n, sceneCount);
+    n._cardKey = key;
+  }
+  const card = n._card;
+
+  // Title
+  ctx.font = CARD_TITLE_FONT;
+  ctx.fillStyle = '#e8e4df';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(card.title, x + 16, scale < DETAIL_LOD ? y + NODE_H / 2 : y + NODE_H / 2 - 6);
+
+  // Subtitle + badge only at higher detail (the bulk of the per-node text cost).
+  if (scale >= DETAIL_LOD) {
+    ctx.font = CARD_SUB_FONT;
+    const subY = y + NODE_H / 2 + 9;
+    for (const seg of card.segments) {
+      ctx.fillStyle = seg.color;
+      ctx.fillText(seg.text, x + 16 + seg.dx, subY);
+    }
+
+    if (card.badge) {
+      const badgeX = x + NODE_W - 8;
+      const badgeY = y + 8;
+
+      ctx.fillStyle = 'rgba(166, 227, 161, 0.2)';
+      ctx.beginPath();
+      ctx.roundRect(badgeX - 20, badgeY - 4, 24, 14, 3);
+      ctx.fill();
+
+      ctx.fillStyle = '#a6e3a1';
+      ctx.font = CARD_BADGE_FONT;
+      ctx.textAlign = 'right';
+      ctx.fillText(card.badge, badgeX, badgeY + 4);
+      ctx.textAlign = 'left';
+    }
   }
 
   ctx.globalAlpha = 1;
@@ -912,5 +955,48 @@ export function fitToView(nodeList) {
   // Calculate zoom to fit all nodes, but cap at 100% (1.0) to avoid zooming in too much
   camera.zoom = Math.min(1.0, W / spanX, H / spanY) * 0.9;
   // Don't change defaultZoom - keep it at 1 (100%) so reset always goes to 100%
+  updateZoomIndicator();
+}
+
+// Wipe the manual canvas (used when handing the viewport to/from the force view
+// so a stale scripts frame doesn't flash before the scene view draws).
+export function clearCanvas() {
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+}
+
+// Center and zoom the manual camera to fit the current scene view content
+// (the expanded scene tree, or the scene overview cards).
+export function fitSceneView() {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+  if (expandedScene && expandedSceneHierarchy) {
+    const layout = calculateTreeLayout(expandedSceneHierarchy);
+    if (layout.nodes.length === 0) return;
+    layout.nodes.forEach(n => {
+      minX = Math.min(minX, n.x);
+      maxX = Math.max(maxX, n.x + n.width);
+      minY = Math.min(minY, n.y);
+      maxY = Math.max(maxY, n.y + SCENE_NODE_H);
+    });
+  } else if (sceneData && sceneData.scenes && sceneData.scenes.length > 0) {
+    sceneData.scenes.forEach(s => {
+      const p = scenePositions[s.path];
+      if (!p) return;
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x + SCENE_CARD_W);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y + SCENE_CARD_H);
+    });
+  }
+
+  if (!isFinite(minX)) return;
+
+  camera.x = (minX + maxX) / 2;
+  camera.y = (minY + maxY) / 2;
+  const spanX = (maxX - minX) + 160;
+  const spanY = (maxY - minY) + 160;
+  camera.zoom = Math.min(1.0, W / spanX, H / spanY) * 0.9;
   updateZoomIndicator();
 }

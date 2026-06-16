@@ -23,6 +23,7 @@ import {
   linkStyle,
   roundRect,
   savePositions,
+  clearCanvas,
 } from "./canvas.js";
 import { openPanel, closePanel } from "./panel.js";
 
@@ -113,8 +114,8 @@ export function initForceView() {
       return sv || tv;
     })
     .nodeCanvasObjectMode(() => "replace")
-    .nodeCanvasObject((node, ctx) => {
-      drawScriptCard(ctx, node, node === hovered, node === selectedNode);
+    .nodeCanvasObject((node, ctx, globalScale) => {
+      drawScriptCard(ctx, node, node === hovered, node === selectedNode, globalScale);
     })
     .nodePointerAreaPaint((node, color, ctx) => {
       ctx.fillStyle = color;
@@ -200,12 +201,19 @@ export function showForceView() {
   const c = document.getElementById("canvas");
   if (c) c.style.display = "none";
   resizeForceView();
+  // Resume the render loop (paused while the scene view was active).
+  if (fg) fg.resumeAnimation();
 }
 
 export function hideForceView() {
   if (container) container.style.display = "none";
+  // Stop the continuous force-graph render loop so it doesn't compete with the
+  // scene view for CPU (we run with autoPauseRedraw disabled).
+  if (fg) fg.pauseAnimation();
   const c = document.getElementById("canvas");
   if (c) c.style.display = "block";
+  // Drop any stale scripts frame so it doesn't flash before the scene draws.
+  clearCanvas();
 }
 
 export function resizeForceView() {

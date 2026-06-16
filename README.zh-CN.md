@@ -2,7 +2,7 @@
 
 [![Godot 4](https://img.shields.io/badge/Godot-4.x-478cbf?logo=godotengine&logoColor=white)](https://godotengine.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
-[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.3-blue.svg)](CHANGELOG.md)
 
 一个独立的 Godot 4 编辑器插件，用来可视化并编辑项目的**脚本关系**与**场景结构**，
 全部由 Godot 编辑器内部托管，无需任何外部服务器。

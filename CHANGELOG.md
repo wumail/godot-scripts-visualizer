@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-17
+
+### Changed
+
+- Optimized the scripts (force-graph) rendering: per-node text layout is cached instead of re-measured every frame, shadows are drawn only on the hovered/selected card, and a level-of-detail pass skips labels when zoomed out. Keeps large script maps smooth.
+
+### Fixed
+
+- The Scenes view no longer lags — the force-graph render loop is paused while the scene view is active instead of redrawing in the background.
+- Switching from Scripts to Scenes no longer flashes a stale scripts frame.
+- The Scenes view now centers and zoom-fits its content (both the scene overview and an expanded scene tree), so large scenes are visible on screen.
+
 ## [0.1.2] - 2026-06-17
 
 ### Changed
@@ -42,6 +54,7 @@ on their own.
 - Replaced the original force-directed graph layout with a hierarchical inheritance layout: base classes flow down through their `extends` chain, with `preload`/`signal` links ordering siblings.
 - Frontend transport switched from WebSocket-to-Node to localhost HTTP-to-plugin (static and legacy WebSocket modes retained).
 
-[Unreleased]: https://github.com/wumail/godot-scripts-visualizer/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/wumail/godot-scripts-visualizer/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/wumail/godot-scripts-visualizer/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/wumail/godot-scripts-visualizer/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/wumail/godot-scripts-visualizer/releases/tag/v0.1.1

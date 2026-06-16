@@ -8,7 +8,7 @@ import {
   setHoveredSceneNode, expandedScene
 } from './state.js';
 import { sendCommand, isStaticPreview } from './websocket.js';
-import { draw, getCanvas, roundRect, getContext, clearPositions } from './canvas.js';
+import { draw, getCanvas, roundRect, getContext, clearPositions, fitSceneView } from './canvas.js';
 import { setForceData, fitForceView, showForceView, hideForceView, resetForceLayout } from './force_view.js';
 import { closePanel, closeSceneNodePanel } from './panel.js';
 import { updateStats } from './events.js';
@@ -225,6 +225,8 @@ async function loadSceneView() {
     if (result.ok) {
       setSceneData(result.scene_map);
       updateStats();
+      draw();          // assigns scene-card positions on first draw
+      fitSceneView();  // center/zoom now that positions exist
       draw();
     } else {
       console.error('Failed to load scenes:', result.error);

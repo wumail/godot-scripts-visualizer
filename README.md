@@ -2,7 +2,7 @@
 
 [![Godot 4](https://img.shields.io/badge/Godot-4.x-478cbf?logo=godotengine&logoColor=white)](https://godotengine.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
-[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.3-blue.svg)](CHANGELOG.md)
 
 A standalone Godot 4 editor plugin that visualizes and edits your project's
 **script relationships** and **scene structure** — all hosted inside the Godot

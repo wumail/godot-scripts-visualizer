@@ -15,7 +15,7 @@ import {
 import {
   getCanvas, screenToWorld, hitTest, draw, resize,
   updateZoomIndicator, savePositions,
-  sceneHitTest, SCENE_CARD_W, SCENE_CARD_H
+  sceneHitTest, SCENE_CARD_W, SCENE_CARD_H, fitSceneView
 } from './canvas.js';
 import { centerOnNodesForce, resizeForceView } from './force_view.js';
 import { openPanel, closePanel, openSceneNodePanel, closeSceneNodePanel } from './panel.js';
@@ -422,12 +422,10 @@ async function expandScene(scenePath) {
     if (result.ok) {
       setExpandedScene(scenePath);
       setExpandedSceneHierarchy(result.hierarchy);
-      
-      // Reset camera position but keep user's zoom level
-      camera.x = 0;
-      camera.y = 100;
-      // Don't change zoom - keep user's preference
-      
+
+      // Center and zoom to fit the scene tree (handles large scenes too).
+      fitSceneView();
+
       // Update UI
       updateSceneBackButton(true, scenePath);
       draw();
@@ -466,6 +464,7 @@ export function goBackToSceneOverview() {
   setHoveredSceneNode(null);
   closeSceneNodePanel();
   updateSceneBackButton(false);
+  fitSceneView();
   draw();
 }
 
